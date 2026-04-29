@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PublicClientApplication, AccountInfo } from "@azure/msal-browser";
+import { PublicClientApplication } from "@azure/msal-browser";
 import { msalConfig, loginRequest } from "./authConfig";
 import {
   getEmployes,
@@ -9,15 +9,6 @@ import {
 } from "./graphService";
 
 const msalInstance = new PublicClientApplication(msalConfig);
-let msalInitialized = false;
-
-async function getMsalInstance() {
-  if (!msalInitialized) {
-    await msalInstance.initialize();
-    msalInitialized = true;
-  }
-  return msalInstance;
-}
 
 export default function App() {
   const [token, setToken] = useState<string>("");
@@ -26,34 +17,49 @@ export default function App() {
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [msalReady, setMsalReady] = useState(false);
 
   useEffect(() => {
-    getMsalInstance().then((msal) => {
-      const accounts = msal.getAllAccounts();
-      if (accounts.length > 0) {
-        msal.acquireTokenSilent({
-          ...loginRequest,
-          account: accounts[0],
-        }).then((result) => {
-          setToken(result.accessToken);
-          chargerEmployes(result.accessToken);
-        }).catch(() => {
-          // Token expiré, l'utilisateur doit se reconnecter
+    msalInstance.initialize().then(() => {
+      // Gère la réponse de la redirection
+      msalInstance.handleRedirectPromise()
+        .then((result) => {
+          if (result && result.accessToken) {
+            setToken(result.accessToken);
+            chargerEmployes(result.accessToken);
+          } else {
+            // Vérifie si une session existe déjà
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+              msalInstance.acquireTokenSilent({
+                ...loginRequest,
+                account: accounts[0],
+              }).then((tokenResult) => {
+                setToken(tokenResult.accessToken);
+                chargerEmployes(tokenResult.accessToken);
+              }).catch(() => {
+                // Pas de session valide
+              });
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Redirect error:", err);
+        })
+        .finally(() => {
+          setMsalReady(true); // MSAL est prêt
         });
-      }
     });
   }, []);
 
   async function login() {
+    if (!msalReady) return;
     try {
       setError("");
-      const msal = await getMsalInstance();
-      const result = await msal.loginPopup(loginRequest);
-      setToken(result.accessToken);
-      chargerEmployes(result.accessToken);
+      await msalInstance.loginRedirect(loginRequest);
     } catch (err: any) {
       console.error("Erreur:", err);
-      setError("Erreur de connexion : " + err.message);
+      setError("Erreur : " + err.message);
     }
   }
 
@@ -63,7 +69,7 @@ export default function App() {
       const data = await getEmployes(t);
       setEmployes(data);
     } catch (err) {
-      setError("Erreur lors du chargement des employés");
+      setError("Erreur lors du chargement");
     }
     setLoading(false);
   }
@@ -115,6 +121,10 @@ export default function App() {
     setForm({ Nom: "", Prenom: "", Poste: "" });
   }
 
+  if (!msalReady) {
+    return <p>⏳ Initialisation...</p>;
+  }
+
   return (
     <div style={{ padding: "20px", fontFamily: "Arial" }}>
       <h1>👥 Gestion des Employés</h1>
@@ -128,6 +138,7 @@ export default function App() {
       {!token ? (
         <button
           onClick={login}
+          disabled={!msalReady}
           style={{
             padding: "10px 20px",
             fontSize: "16px",
