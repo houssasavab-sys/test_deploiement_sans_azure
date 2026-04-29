@@ -35,5 +35,6 @@ const app = new App({
 app.tab("home", path.join(__dirname, "./client"));
 
 (async () => {
+  // await app.start(process.env.PORT || 3978);
   await app.start(process.env.PORT || 3978);
 })();
