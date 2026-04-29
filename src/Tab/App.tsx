@@ -9,6 +9,15 @@ import {
 } from "./graphService";
 
 const msalInstance = new PublicClientApplication(msalConfig);
+let msalInitialized = false;
+
+async function getMsalInstance() {
+  if (!msalInitialized) {
+    await msalInstance.initialize();
+    msalInitialized = true;
+  }
+  return msalInstance;
+}
 
 export default function App() {
   const [token, setToken] = useState<string>("");
@@ -20,26 +29,22 @@ export default function App() {
   const [msalReady, setMsalReady] = useState(false);
 
   useEffect(() => {
-    msalInstance.initialize().then(() => {
-      // Gère la réponse de la redirection
-      msalInstance.handleRedirectPromise()
+    getMsalInstance().then((msal) => {
+      msal.handleRedirectPromise()
         .then((result) => {
           if (result && result.accessToken) {
             setToken(result.accessToken);
             chargerEmployes(result.accessToken);
           } else {
-            // Vérifie si une session existe déjà
-            const accounts = msalInstance.getAllAccounts();
+            const accounts = msal.getAllAccounts();
             if (accounts.length > 0) {
-              msalInstance.acquireTokenSilent({
+              msal.acquireTokenSilent({
                 ...loginRequest,
                 account: accounts[0],
               }).then((tokenResult) => {
                 setToken(tokenResult.accessToken);
                 chargerEmployes(tokenResult.accessToken);
-              }).catch(() => {
-                // Pas de session valide
-              });
+              }).catch(() => {});
             }
           }
         })
@@ -47,7 +52,7 @@ export default function App() {
           console.error("Redirect error:", err);
         })
         .finally(() => {
-          setMsalReady(true); // MSAL est prêt
+          setMsalReady(true);
         });
     });
   }, []);
@@ -58,7 +63,6 @@ export default function App() {
       setError("");
       await msalInstance.loginRedirect(loginRequest);
     } catch (err: any) {
-      console.error("Erreur:", err);
       setError("Erreur : " + err.message);
     }
   }
@@ -98,8 +102,8 @@ export default function App() {
   function editer(employe: any) {
     setEditId(employe.id);
     setForm({
-      Nom: employe.fields.Nom || "",
-      Prenom: employe.fields.Prenom || "",
+      Nom: employe.fields.Title || "",
+      Prenom: employe.fields.Pr_x00e9_nom || "",
       Poste: employe.fields.Poste || "",
     });
   }
@@ -174,13 +178,17 @@ export default function App() {
                 onChange={(e) => setForm({ ...form, Poste: e.target.value })}
                 style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
               />
-              <button onClick={sauvegarder}
-                style={{ padding: "8px 16px", background: "#6264A7", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+              <button
+                onClick={sauvegarder}
+                style={{ padding: "8px 16px", background: "#6264A7", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+              >
                 {editId ? "✅ Modifier" : "➕ Ajouter"}
               </button>
               {editId && (
-                <button onClick={annuler}
-                  style={{ padding: "8px 16px", background: "#ccc", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+                <button
+                  onClick={annuler}
+                  style={{ padding: "8px 16px", background: "#ccc", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                >
                   ❌ Annuler
                 </button>
               )}
@@ -204,16 +212,20 @@ export default function App() {
               <tbody>
                 {employes.map((e) => (
                   <tr key={e.id} style={{ borderBottom: "1px solid #ddd" }}>
-                    <td style={{ padding: "10px" }}>{e.fields.Nom}</td>
-                    <td style={{ padding: "10px" }}>{e.fields.Prenom}</td>
+                    <td style={{ padding: "10px" }}>{e.fields.Title}</td>
+                    <td style={{ padding: "10px" }}>{e.fields.Pr_x00e9_nom}</td>
                     <td style={{ padding: "10px" }}>{e.fields.Poste}</td>
                     <td style={{ padding: "10px", display: "flex", gap: "8px" }}>
-                      <button onClick={() => editer(e)}
-                        style={{ padding: "5px 10px", background: "#0078D4", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+                      <button
+                        onClick={() => editer(e)}
+                        style={{ padding: "5px 10px", background: "#0078D4", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                      >
                         ✏️ Modifier
                       </button>
-                      <button onClick={() => supprimer(e.id)}
-                        style={{ padding: "5px 10px", background: "#D13438", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+                      <button
+                        onClick={() => supprimer(e.id)}
+                        style={{ padding: "5px 10px", background: "#D13438", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                      >
                         🗑️ Supprimer
                       </button>
                     </td>

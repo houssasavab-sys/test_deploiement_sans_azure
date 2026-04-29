@@ -1,7 +1,5 @@
-const SITE_URL = "https://iokeo.sharepoint.com/sites/Bree__test";
 const LIST_NAME = "Employés";
 
-// Récupère l'ID du site SharePoint
 async function getSiteId(token: string): Promise<string> {
   const response = await fetch(
     `https://graph.microsoft.com/v1.0/sites/iokeo.sharepoint.com:/sites/Bree__test`,
@@ -11,7 +9,6 @@ async function getSiteId(token: string): Promise<string> {
   return data.id;
 }
 
-// Récupère l'ID de la liste
 async function getListId(token: string, siteId: string): Promise<string> {
   const response = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${siteId}/lists?$filter=displayName eq '${LIST_NAME}'`,
@@ -21,7 +18,7 @@ async function getListId(token: string, siteId: string): Promise<string> {
   return data.value[0].id;
 }
 
-// ✅ READ — Lire tous les employés
+// ✅ READ
 export async function getEmployes(token: string) {
   const siteId = await getSiteId(token);
   const listId = await getListId(token, siteId);
@@ -33,7 +30,7 @@ export async function getEmployes(token: string) {
   return data.value;
 }
 
-// ✅ CREATE — Ajouter un employé
+// ✅ CREATE
 export async function createEmploye(token: string, employe: {
   Nom: string;
   Prenom: string;
@@ -49,13 +46,19 @@ export async function createEmploye(token: string, employe: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ fields: employe }),
+      body: JSON.stringify({
+        fields: {
+          Title: employe.Nom,
+          Pr_x00e9_nom: employe.Prenom,
+          Poste: employe.Poste,
+        }
+      }),
     }
   );
   return await response.json();
 }
 
-// ✅ UPDATE — Modifier un employé
+// ✅ UPDATE
 export async function updateEmploye(token: string, itemId: string, employe: {
   Nom?: string;
   Prenom?: string;
@@ -71,13 +74,17 @@ export async function updateEmploye(token: string, itemId: string, employe: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(employe),
+      body: JSON.stringify({
+        Title: employe.Nom,
+        Pr_x00e9_nom: employe.Prenom,
+        Poste: employe.Poste,
+      }),
     }
   );
   return await response.json();
 }
 
-// ✅ DELETE — Supprimer un employé
+// ✅ DELETE
 export async function deleteEmploye(token: string, itemId: string) {
   const siteId = await getSiteId(token);
   const listId = await getListId(token, siteId);
