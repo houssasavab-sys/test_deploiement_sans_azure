@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { PublicClientApplication } from "@azure/msal-browser";
-import { msalConfig, loginRequest } from "../authConfig";
+import { msalConfig, loginRequest } from "./authConfig";
 import {
   getEmployes,
   createEmploye,
   updateEmploye,
   deleteEmploye,
-} from "../graphService";
+} from "./graphService";
+
+
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
