@@ -32,7 +32,9 @@ const app = new App({
   httpServerAdapter: adapter,
 });
 
+const ClientPath = path.join(__dirname, "./client");
 app.tab("home", path.join(__dirname, "./client"));
+console.log(ClientPath);
 
 (async () => {
   // await app.start(process.env.PORT || 3978);
